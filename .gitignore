@@ -17,3 +17,5 @@ __pycache__/
 
 # OS junk
 .DS_Store
+
+models/ft_0to31_interleaved_stdmixsafecombonarafa_none_mult0/prompts_train.json

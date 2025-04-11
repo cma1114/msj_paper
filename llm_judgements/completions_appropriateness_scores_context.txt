@@ -1,0 +1,3 @@
+contrast=conv_dict_lmsys_good_20shot__ft_randalias_0to31_interleaved_stdmixsafecombo6_none_mult0_1_raw_V_untunedmodel_new_raw
+provider=Anthropic
+scores=[2, 0, 2, 2, 2, 1, 1, 2, 0, 1, 2, 2, 0, 0, 2, 2, 2, 2, 2, 1, 2, 2, 2, 0, 2, 2, 1, 0, 2, 0, 0, 0, 1, 1, 0, 1, 2, 2, 1, 2, 2, 2, 2, 1, 0, 2, 1, 1, 2, 0, 2, 0, 2, 2, 0, 1, 0, 2, 2, 2, 2, 1, 2, 2, 1, 2, 0, 1, 1, 1, 2, 2, 0, 2, 0, 0, 2, 0, 2, 0, 2, 0, 2, 1, 2, 1, 0, 0, 0, 2, 0, 2, 0, 0, 1, 0, 2, 2, 0, 0]

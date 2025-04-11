@@ -1,0 +1,19 @@
+# Secrets
+.env
+*.env
+config.json
+*.key
+*.pem
+
+# Python junk
+__pycache__/
+*.pyc
+
+# Notebooks checkpoints
+.ipynb_checkpoints/
+
+# VS Code
+.vscode/
+
+# OS junk
+.DS_Store

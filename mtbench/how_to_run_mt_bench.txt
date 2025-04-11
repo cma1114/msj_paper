@@ -1,0 +1,28 @@
+cd home
+git clone https://github.com/lm-sys/FastChat.git
+cd /home/FastChat
+pip install .
+pip install openai==0.28
+pip install shortuuid, anthropic
+cd /home/FastChat
+# Create directories and copy files where the code expects them
+mkdir -p data/mt_bench
+mkdir -p data/mt_bench/model_answer
+mkdir -p data/mt_bench/reference_answer
+cp fastchat/llm_judge/data/mt_bench/question.jsonl data/mt_bench/
+cp fastchat/llm_judge/data/judge_prompts.jsonl data/
+cp fastchat/llm_judge/data/mt_bench/reference_answer/gpt-4.jsonl data/mt_bench/reference_answer/
+
+cd /home/msj
+python3 -m eval.run_mt_bench
+# This saves results to results/{model_id}_answers.jsonl
+
+cd /home/FastChat
+cp /home/msj/results/orthrand44_both10_fullrand20pstd_answers.jsonl data/mt_bench/model_answer/orthrand44_both10_fullrand20pstd.jsonl
+export OPENAI_API_KEY="your-key-here"
+python3 -m fastchat.llm_judge.gen_judgment --model-list orthrand44_both10_fullrand20pstd --bench-name mt_bench --judge-model gpt-4
+
+cat data/mt_bench/model_judgment/untuned_gpt-4_single.jsonl data/mt_bench/model_judgment/orthrand44_both10_mix40_gpt-4_single.jsonl  > data/mt_bench/model_judgment/gpt-4_single.jsonl.combined
+mv data/mt_bench/model_judgment/gpt-4_single.jsonl.combined data/mt_bench/model_judgment/gpt-4_single.jsonl
+
+python3 -m fastchat.llm_judge.show_result --bench-name mt_bench --model-list untuned orthrand44_both10_mix

@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import scipy.stats as stats
 
 def plot_parity_accuracy(correct_by_shots, suffix, num_parities):
@@ -142,8 +143,105 @@ def plot_parity_accuracy_mult2(dict_list, suffix, num_parities, labels=None):
     plt.savefig(f"parity_accuracy{suffix}.png", dpi=100)
     plt.show()
 
+import matplotlib.ticker as mticker     
+def plot_log_fit_new(title, actual_shot_counts, nlls_mean_by_type, nlls_vars_by_type,
+                     fit_threshold=4, ax=None, axidx=0):
+    """
+    Plots log‑scaled NLL versus log2‑scaled number of shots, keeping the original
+    diagnostics in place.
+    """
+    use_plt = ax is None
+    if use_plt:
+        plt.figure(figsize=(6, 4))
 
-def plot_log_fit_new(title, actual_shot_counts, nlls_mean_by_type, nlls_vars_by_type, fit_threshold=4, ax=None):
+    actual_shot_counts = np.array(actual_shot_counts)
+    colors = ['gray', 'black', 'cyan', 'blue', 'brown', 'pink']
+
+    # Build a list where each entry contains: (mean data, variance data, label, color)
+    nlls_data = [
+        (np.array(nlls_mean_by_type[label]), np.array(nlls_vars_by_type[label]),
+         label, colors[i % len(colors)])
+        for i, label in enumerate(nlls_mean_by_type.keys())
+    ]
+
+    plot_func = plt if use_plt else ax
+
+    for nlls, nlls_vars, label, color in nlls_data:
+        positive = (nlls > 0) & ~np.isnan(nlls)   # need positive NLLs for log
+        plot_func.scatter(actual_shot_counts[positive], nlls[positive],
+                          color=color, s=30)
+
+        fit_indices = (actual_shot_counts >= fit_threshold) & positive
+        fit_shot_counts = actual_shot_counts[fit_indices]
+        fit_nlls = nlls[fit_indices]
+        fit_vars = nlls_vars[fit_indices]
+
+        if len(fit_shot_counts) > 1:
+            log_x = np.log2(fit_shot_counts)
+            log_y = np.log10(fit_nlls)
+            weights = 1 / np.sqrt(fit_vars)
+
+            fit_coeffs, cov = np.polyfit(log_x, log_y, 1, w=weights, cov=True)
+            slope, intercept = fit_coeffs
+            slope_se = np.sqrt(cov[0, 0])
+            margin = 1.96 * slope_se
+            lower_bound, upper_bound = slope - margin, slope + margin
+
+            fit_line        = 10 ** (slope * log_x + intercept)
+            lower_fit_line  = 10 ** (lower_bound * log_x + intercept)
+            upper_fit_line  = 10 ** (upper_bound * log_x + intercept)
+
+            plot_func.plot(fit_shot_counts, fit_line, color=color,
+                           linestyle='-', linewidth=2)
+            plot_func.plot(fit_shot_counts, lower_fit_line, color=color,
+                           linestyle='--', linewidth=1)
+            plot_func.plot(fit_shot_counts, upper_fit_line, color=color,
+                           linestyle='--', linewidth=1)
+
+            # legend label + ***diagnostic prints restored***
+            lbl = (f'{label}: slope={slope:.3f} '
+                   f'({lower_bound:.3f}, {upper_bound:.3f}), int.={intercept:.2f}')
+            print(f"Label: {lbl}")
+            print(f"Last NLL: {np.log10(nlls[-1])}")
+            plot_func.scatter([], [], color=color, label=lbl)
+
+    # x‑tick setup unchanged
+    min_shots = np.min(actual_shot_counts)
+    max_shots = np.max(actual_shot_counts)
+    min_exp = int(np.floor(np.log2(min_shots))) if min_shots > 0 else 0
+    max_exp = int(np.ceil(np.log2(max_shots)))
+    xticks = [0] + [2 ** exp for exp in range(min_exp, max_exp + 1)]
+
+    if use_plt:
+        plt.xscale('symlog', base=2)
+        plt.yscale('log')                       # log ticks for NLL axis
+        plt.xticks(xticks)
+        plt.xlabel('Number of shots', fontsize=8)
+        plt.ylabel('Negative Log Likelihood (log‑scaled)', fontsize=8)
+        plt.title(title, fontsize=10)
+        plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(title.replace(" ", "_") + ".png", dpi=100)
+        plt.show()
+    else:
+        ax.set_xscale('symlog', base=2)
+        ax.set_yscale('log')                    # log ticks for NLL axis
+        #ax.tick_params(axis='y', which='both', labelleft=False, labelright=False)
+        plain = mticker.FuncFormatter(lambda y, _: ('{:.2f}'.format(y)).rstrip('0').rstrip('.'))
+        ax.yaxis.set_major_formatter(plain)                # major ticks
+        ax.yaxis.set_minor_formatter(plain)   
+        ax.set_xticks(xticks)
+        ax.set_xlabel('Number of shots', fontsize=12)
+        if axidx == 0:
+            ax.set_ylabel('Negative Log Likelihood (log‑scaled)', fontsize=12)
+        ax.set_title(title, fontsize=14, pad=5)
+        ax.grid(True, which='both', linestyle='--', linewidth=0.5)
+
+    return ax if ax else None
+
+
+def plot_log_fit_new_old(title, actual_shot_counts, nlls_mean_by_type, nlls_vars_by_type, fit_threshold=4, ax=None, axidx=0):
     use_plt = ax is None
     if use_plt:
         plt.figure(figsize=(6, 4))
@@ -158,7 +256,7 @@ def plot_log_fit_new(title, actual_shot_counts, nlls_mean_by_type, nlls_vars_by_
     ]
     
     plot_func = plt if use_plt else ax
-    
+
     for nlls, nlls_vars, label, color in nlls_data:
         valid_plot = ~np.isnan(nlls)
         plot_func.scatter(actual_shot_counts[valid_plot], nlls[valid_plot], color=color, s=30)
@@ -187,16 +285,18 @@ def plot_log_fit_new(title, actual_shot_counts, nlls_mean_by_type, nlls_vars_by_
             fit_line = np.polyval(fit_coeffs, log_x)
             plot_func.plot(fit_shot_counts, fit_line, color=color, linestyle='-', linewidth=2)
             
-            # Optionally, plot the predicted lines if the slope were at its lower/upper bound.
+            # Plot the predicted lines if the slope were at its lower/upper bound.
             lower_fit_line = lower_bound * log_x + intercept
             upper_fit_line = upper_bound * log_x + intercept
             plot_func.plot(fit_shot_counts, lower_fit_line, color=color, linestyle='--', linewidth=1)
             plot_func.plot(fit_shot_counts, upper_fit_line, color=color, linestyle='--', linewidth=1)
             
             # Add an entry to the legend including the CI bounds for the slope.
-            plot_func.scatter([], [], color=color,
-                                label=f'{label}: slope={slope:.3f} ({lower_bound:.3f}, {upper_bound:.3f}), int.={intercept:.2f}')
-    
+            lbl = f'{label}: slope={slope:.3f} ({lower_bound:.3f}, {upper_bound:.3f}), int.={intercept:.2f}'
+            print(f"Label: {lbl}")
+            print(f"Last NLL: {nlls[-1]}")
+            plot_func.scatter([], [], color=color, label=lbl)
+
     min_shots = np.min(actual_shot_counts)
     max_shots = np.max(actual_shot_counts)
     min_exp = int(np.floor(np.log2(min_shots))) if min_shots > 0 else 0
@@ -217,12 +317,12 @@ def plot_log_fit_new(title, actual_shot_counts, nlls_mean_by_type, nlls_vars_by_
     else:
         ax.set_xscale('symlog', base=2)
         ax.set_xticks(xticks)
-        ax.set_xlabel('Number of shots', fontsize=8)
-        ax.set_ylabel('Negative Log Likelihood', fontsize=8)
-        ax.set_title(title, fontsize=10)
+        ax.set_xlabel('Number of shots', fontsize=12)
+        if axidx == 0: ax.set_ylabel('Negative Log Likelihood', fontsize=12)
+        ax.set_title(title, fontsize=14, pad=5)
         ax.grid(True, which='both', linestyle='--', linewidth=0.5)
         #ax.legend()
-        ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=1, fontsize=8, frameon=True)
+        ###ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.20), ncol=1, frameon=True, fontsize=9.5)
     
     return ax if ax else None
 
@@ -287,8 +387,8 @@ def plot_log_fit_novars(title, actual_shot_counts, nlls_mean_by_type, fit_thresh
     else:
         ax.set_xscale('symlog', base=2)
         ax.set_xticks(xticks)
-        ax.set_xlabel('Number of shots', fontsize=8)
-        ax.set_ylabel('Negative Log Likelihood', fontsize=8)
+        ax.set_xlabel('Number of shots', fontsize=9)
+        ax.set_ylabel('Negative Log Likelihood', fontsize=9)
         ax.set_title(title, fontsize=10)
         ax.grid(True, which='both', linestyle='--', linewidth=0.5)
         ax.legend()
@@ -308,7 +408,7 @@ def plot_grid_new(plot_data, n_cols=2, save_path=None):
     for idx, (title, counts, nlls, nllvars, threshold) in enumerate(plot_data):
         row, col = idx // n_cols, idx % n_cols
         if nllvars:
-            plot_log_fit_new(title, counts, nlls, nllvars, threshold, axes[row, col])
+            plot_log_fit_new(title, counts, nlls, nllvars, threshold, axes[row, col], idx)
         else:
             plot_log_fit_novars(title, counts, nlls, threshold, axes[row, col])
             
@@ -317,7 +417,16 @@ def plot_grid_new(plot_data, n_cols=2, save_path=None):
         row, col = idx // n_cols, idx % n_cols
         axes[row, col].set_visible(False)
     
+
+    # Define legend entries manually (same across subplots)
+    colors = ['gray', 'black', 'cyan', 'blue', 'brown', 'pink']
+    legend_elements = []
+    for idx, (title, counts, nlls, nllvars, threshold) in enumerate(plot_data):
+        legend_elements.append(Line2D([0], [0], marker='o', color='w', label=list(nlls.keys())[idx], markerfacecolor=colors[idx], markersize=16))
+
+    fig.legend(handles=legend_elements, loc='upper center', ncol=4, fontsize=16, frameon=False, bbox_to_anchor=(0.5, 1.08)) 
+
     plt.tight_layout()
     if save_path:
-        plt.savefig(save_path, dpi=100)
+        plt.savefig(save_path, dpi=100, bbox_inches='tight')
     plt.show()    

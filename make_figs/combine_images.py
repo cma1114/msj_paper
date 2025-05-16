@@ -90,7 +90,7 @@ def create_flexible_grid(image_paths, output_path, grid_dims=(2, 2)):
     new_image.save(dir+output_path)
 
 
-dir = "./"#"/Users/christopherackerman/Downloads/"#
+dir = "./"
 image_files = [f'{dir}nlls_ft_lora_0to5_learn_interleaved_mixedlmsys4_orthrandembedembed_mult1_400.png',
                f'{dir}nlls_ft_lora_5to10_learn_interleaved_mixedlmsys4_randomlikeembed_mult1_800.png',
                f'{dir}nlls_ft_lora_5to10_learn_interleaved_mixedlmsys4_randomuaembed_mult1_500.png',
